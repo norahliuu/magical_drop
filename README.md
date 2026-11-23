@@ -1,26 +1,32 @@
-# Magical Drop - MIPS game
+# Magical Drop - Demo 1 base game
 
-Open `magicaldrop.asm` in Saturn. Under Ctrl+T > Bitmap, set display width/height to 256, both unit sizes to 8, and the address to `0x10008000`. Press Play, then click the bitmap to give it keyboard focus.
+This branch implements the detailed Milestones 1-3 checklist. The full-feature version remains on `master`.
 
-- **a / d**: move one column; the player stops at the edges.
-- **s**: grab the bottom contiguous chain of the same colour. While holding bubbles, only that colour can be collected.
-- **w**: throw the entire held stack into the current column. An empty column receives the stack at the top; otherwise it attaches beneath the existing bubbles.
-- **p**: pause/resume. The bitmap displays PAUSED; the timer and gameplay freeze.
-- **r**: start a new game from the Game Over screen.
-- **q**: exit at any time.
+## Run in Saturn
 
-A random row arrives automatically every five seconds of active play, even without keyboard input. Paused time does not count. Change `row_interval` (milliseconds) to adjust this delay. The right-hand tally shows one coloured square for each held bubble.
+Open `magicaldrop.asm`. Under Ctrl+T > Bitmap, set display width/height to 256, both unit sizes to 8, and base address to `0x10008000`. Press Play and click the bitmap for keyboard focus. Use lowercase keys.
 
-Three or more vertical matching bubbles trigger removal of the whole connected same-colour component (four-way adjacency). Horizontal groups alone do not trigger. Remaining bubbles compact upwards in their columns; new vertical matches resolve repeatedly until stable. New rows are not automatically cleared until a throw triggers a match check.
+- **a / d:** move left/right within the seven columns.
+- **s:** grab the bottom contiguous same-colour stack. When holding bubbles, only that colour can be collected.
+- **w:** throw the held stack beneath the lowest bubble in the selected column, or at the top of an empty column.
+- **q:** quit.
 
-Reaching the bottom board row after an action resolves ends the game. Throwing more bubbles than the column can hold also ends it without writing beyond the board. The bitmap displays GAME OVER, R RETRY, and Q QUIT. Press r to reset the board, player, held bubbles, matching data, pause flag, and timer, or q to exit. There is no score, sound, or difficulty menu.
+The board has 7 columns, 14 rows, and five random starting rows using four colours. Held bubbles appear on the right.
 
-Implemented extra features: easy #1 (timed rows), #4 (Game Over/retry), and #6 (pause).
+Every 10 a/d/s/w keypresses adds a random top row and pushes existing bubbles downward. Unsuccessful gameplay actions count; other keys do not. Waiting without input never advances rows.
 
-The board stores 98 words in row-major order, separate from the display. Zero is empty; 1-4 are colours. `marks` stores the removal set; player column, held colour/count, timer, pause flag, and loss status have separate words. Display units are 32 x 32, with 2 x 2 units per board cell.
+After a throw, vertical runs of three or more clear in one simultaneous pass. Horizontal neighbours do not clear unless part of their own vertical run. Remaining bubbles stay in place: no flood fill, gravity, or chains.
 
-## Validation
+Reaching the bottom row after an action resolves, or attempting an overflowing throw, ends execution after redrawing the board. Stop/Play starts another game. There is no timer, pause, retry screen, score, sound, or menu.
 
-Run `python -m unittest discover -s tests -v`. The deterministic test harness executes the MIPS instruction subset in the source file and checks board states and memory bounds. It is not a full MIPS assembler or a substitute for testing in Saturn.
+## Worksheet interpretation
 
-The source header records Codex assistance. Fill in the student information and follow your course's attribution requirements.
+This branch follows the detailed Demo 1 checklist (Milestone 3 items a-c) and omits features listed under Easy/Hard Features. The worksheet also mentions chains in the Milestone 3 heading and preparation steps, although gravity and chains are separately listed as hard extras. Confirm that ambiguity with the TA; the full implementation remains on `master`.
+
+## Memory and validation
+
+`board` and `bubbles_to_clear` each contain 98 words (392 bytes). Board values are 0 for empty and 1-4 for colours. Cell address is `board + 4*(row*7 + column)`. Player column, held colour/count, keystroke count, and game-over state have separate words. Drawing uses a 32 x 32 logical display with 2 x 2 units per bubble.
+
+Run `python -m unittest discover -s tests -v`. These deterministic checks execute the source's MIPS instruction subset; they do not replace assembly and playtesting in Saturn. Test the branch in Saturn before submitting it.
+
+Students: Norah Liu and Tony Lin. Fill in student numbers in the source header. Codex assistance is recorded in the source. The report must describe this branch's keystroke-based rows and base-only matching if submitting this version; the earlier full-feature report needs corresponding updates.

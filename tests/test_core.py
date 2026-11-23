@@ -95,102 +95,84 @@ class CoreTests(unittest.TestCase):
         for c in range(4): m.cell(0,c,1)
         before=m.cells(); m.run('resolve_matches'); self.assertEqual(m.cells(),before)
 
-    def test_flood_fill_and_no_row_wrap(self):
+    def test_only_vertical_matches_clear_without_gravity(self):
         m=Machine()
         for r in range(3): m.cell(r,6,1)
-        m.cell(1,5,1); m.cell(2,4,1)  # diagonal remains
-        m.cell(3,0,1)  # next row must not wrap horizontally
+        m.cell(1,5,1); m.cell(2,4,1); m.cell(3,0,1)
         m.run('resolve_matches')
-        self.assertEqual(sum(x != 0 for x in m.cells()),2)
-        self.assertEqual(m.cells()[4],1); self.assertEqual(m.cells()[0],1)
+        self.assertEqual(sum(x != 0 for x in m.cells()),3)
+        self.assertEqual(m.cells()[12],1)
+        self.assertEqual(m.cells()[18],1)
+        self.assertEqual(m.cells()[21],1)
 
-    def test_gravity_and_chain(self):
+    def test_long_runs_clear_but_survivors_stay_in_place(self):
         m=Machine()
-        for r, colour in enumerate([2,1,1,1,2,2]): m.cell(r,0,colour)
-        m.cell(4,1,3)
+        for r, colour in enumerate([2,1,1,1,1,2,2]): m.cell(r,0,colour)
         m.run('resolve_matches')
-        self.assertEqual(sum(x != 0 for x in m.cells()),1)
-        self.assertEqual(m.cells()[1],3)
+        self.assertEqual([m.cells()[7*r] for r in range(7)],[2,0,0,0,0,2,2])
 
     def test_throw_empty_and_no_hands(self):
-        m=Machine(); m.set('player_col',3); m.set('held_colour',2); m.set('held_count',2)
+        m=Machine(); m.set('player_column',3); m.set('held_bubble_colour',2); m.set('held_bubble_count',2)
         m.run('throw',stop='redraw')
         self.assertEqual(m.cells()[3],2); self.assertEqual(m.cells()[10],2)
-        self.assertEqual(m.get('held_count'),0)
+        self.assertEqual(m.get('held_bubble_count'),0)
         before=m.cells(); m.run('throw',stop='redraw'); self.assertEqual(m.cells(),before)
 
     def test_throw_match(self):
-        m=Machine(); m.set('player_col',0); m.cell(0,0,2); m.set('held_colour',2); m.set('held_count',2)
+        m=Machine(); m.set('player_column',0); m.cell(0,0,2); m.set('held_bubble_colour',2); m.set('held_bubble_count',2)
         m.run('throw',stop='redraw'); self.assertFalse(any(m.cells()))
 
     def test_overflow_is_atomic(self):
-        m=Machine(); m.set('player_col',0)
+        m=Machine(); m.set('player_column',0)
         for r in range(12): m.cell(r,0,1+(r%4))
-        m.set('held_count',3); m.set('held_colour',2)
+        m.set('held_bubble_count',3); m.set('held_bubble_colour',2)
         before=m.cells(); m.run('throw',stop='redraw')
         self.assertEqual(m.cells(),before); self.assertEqual(m.get('game_over'),1)
 
     def test_grab_chain_colour_and_empty(self):
-        m=Machine(); m.set('player_col',0)
+        m=Machine(); m.set('player_column',0)
         for r, colour in enumerate([1,2,2]): m.cell(r,0,colour)
-        m.run('grab',stop='redraw'); self.assertEqual(m.get('held_count'),2)
+        m.run('grab',stop='redraw'); self.assertEqual(m.get('held_bubble_count'),2)
         self.assertEqual(m.cells()[0],1)
-        m.run('grab',stop='redraw'); self.assertEqual(m.get('held_count'),2)
-        m.set('player_col',1); m.run('grab',stop='redraw'); self.assertEqual(m.get('held_count'),2)
+        m.run('grab',stop='redraw'); self.assertEqual(m.get('held_bubble_count'),2)
+        m.set('player_column',1); m.run('grab',stop='redraw'); self.assertEqual(m.get('held_bubble_count'),2)
 
-    def test_bounds_do_not_advance_rows(self):
-        m=Machine(); m.cell(0,0,3); before=m.cells()
-        for _ in range(10): m.run('move_left',stop='redraw')
-        self.assertEqual(m.get('player_col'),0); self.assertEqual(m.cells(),before)
-        m.set('player_col',6); m.run('move_right',stop='redraw')
-        self.assertEqual(m.get('player_col'),6)
-
-    def test_timed_row_and_loss(self):
-        m=Machine(); m.cell(12,0,4)
-        m.now=4999; m.run('update_timer'); self.assertEqual(m.reg['$v0'],0)
-        m.now=5000; m.run('update_timer'); self.assertEqual(m.reg['$v0'],1)
-        self.assertEqual(m.cells()[91],4)
+    def test_tenth_gameplay_key_advances_row_and_bounds_hold(self):
+        m=Machine(); m.set('player_column',0); m.cell(0,0,3); before=m.cells()
+        for _ in range(9): m.run('move_left',stop='redraw')
+        self.assertEqual(m.get('player_column'),0)
+        self.assertEqual(m.cells(),before); self.assertEqual(m.get('key_count'),9)
+        m.run('move_left',stop='redraw')
+        self.assertEqual(m.get('key_count'),0); self.assertEqual(m.cells()[7],3)
         self.assertTrue(all(1 <= x <= 4 for x in m.cells()[:7]))
-        m.run('check_loss',stop='redraw'); self.assertEqual(m.get('game_over'),1)
+        m.set('player_column',6); m.run('move_right',stop='redraw')
+        self.assertEqual(m.get('player_column'),6)
 
-    def test_pause_freezes_time_and_resume_restores_pixels(self):
-        m=Machine(); m.run('main',stop='game_loop')
-        m.now=2000; m.run('update_timer')
-        before=m.cells(); screen={k:v for k,v in m.mem.items() if 0x10008000<=k<0x10009000}
-        m.run('pause_game',stop='game_loop'); self.assertEqual(m.get('paused'),1)
-        m.now=100000; m.run('update_timer')
-        self.assertEqual(m.get('row_elapsed'),2000); self.assertEqual(m.cells(),before)
-        m.reg['$t1']=ord('s'); m.run('handle_key',stop='game_loop')
-        self.assertEqual(m.cells(),before)
-        m.run('toggle_pause',stop='game_loop')
-        self.assertEqual(m.get('paused'),0); self.assertEqual(m.get('last_tick'),100000)
-        self.assertEqual({k:v for k,v in m.mem.items() if 0x10008000<=k<0x10009000},screen)
-        m.now=103000; m.run('update_timer'); self.assertEqual(m.reg['$v0'],1)
+    def test_row_advancement_triggers_loss(self):
+        m=Machine(); m.cell(12,0,4); m.set('key_count',9)
+        m.run('move_left',stop='redraw')
+        self.assertEqual(m.cells()[91],4); self.assertEqual(m.get('game_over'),1)
+        m.run('redraw')
+        self.assertEqual(m.reg['$v0'],10)
 
-    def test_retry_resets_every_round_variable(self):
-        m=Machine(); m.set('game_over',1); m.set('paused',1)
-        m.set('held_count',5); m.set('held_colour',2); m.set('row_elapsed',4500)
-        m.set('player_col',0); m.mem[m.labels['marks']]=1
-        m.now=12345; m.reg['$t1']=ord('r')
-        m.run('handle_key',stop='game_loop')
-        for name in ('game_over','paused','held_count','held_colour','row_elapsed'):
-            self.assertEqual(m.get(name),0)
-        self.assertEqual(m.get('player_col'),3); self.assertEqual(m.get('last_tick'),12345)
-        self.assertEqual(sum(x!=0 for x in m.cells()),35)
-        self.assertFalse(any(m.mem.get(m.labels['marks']+4*i,0) for i in range(98)))
+    def test_extra_keys_are_ignored(self):
+        m=Machine(); m.cell(0,0,2); before=m.cells()
+        for key in 'prxz':
+            m.reg['$t1']=ord(key); m.run('handle_key',stop='game_loop')
+        self.assertEqual(m.cells(),before); self.assertEqual(m.get('key_count'),0)
 
-    def test_game_over_screen_and_input_lock(self):
-        m=Machine(); m.set('game_over',1); m.cell(13,0,4)
-        before=m.cells(); m.run('show_game_over',stop='game_loop')
-        self.assertTrue(any(v==0x00ef5350 for k,v in m.mem.items() if 0x10008000<=k<0x10009000))
-        m.reg['$t1']=ord('s'); m.run('handle_key',stop='game_loop')
-        self.assertEqual(m.cells(),before)
-        m.now=99999; m.run('update_timer'); self.assertEqual(m.cells(),before)
+    def test_all_gameplay_keys_count_and_quit_exits(self):
+        m=Machine()
+        for key in 'adsw':
+            m.reg['$t1']=ord(key); m.run('handle_key',stop='redraw')
+        self.assertEqual(m.get('key_count'),4)
+        m.reg['$t1']=ord('q'); m.run('handle_key')
+        self.assertEqual(m.reg['$v0'],10)
 
     def test_startup_and_render_with_large_hand(self):
         m=Machine(); m.run('main',stop='game_loop')
         self.assertEqual(sum(x != 0 for x in m.cells()),35)
-        m.set('held_count',98); m.set('held_colour',2)
+        m.set('held_bubble_count',98); m.set('held_bubble_colour',2)
         m.run('redraw',stop='game_loop')
         display=[x for x in m.mem if 0x10008000 <= x < 0x10010000]
         self.assertTrue(all(x < 0x10009000 for x in display))
