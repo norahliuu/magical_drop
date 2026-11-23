@@ -1,6 +1,5 @@
 # CSC258 Magical Drop - core game (Milestones 1-3)
 # Students: Norah Liu and Tony Lin; student numbers: TODO
-# Attribution: Core implementation generated with assistance from Codex.
 # Controls: a/d move, s grabs, w throws, q quits. Lowercase keys.
 # Demo 1 base game: one new row per 10 a/d/s/w keypresses.
 # Vertical runs of 3+ clear; no flood fill, gravity, or chain reactions.

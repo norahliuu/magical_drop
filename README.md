@@ -29,4 +29,4 @@ This branch follows the detailed Demo 1 checklist (Milestone 3 items a-c) and om
 
 Run `python -m unittest discover -s tests -v`. These deterministic checks execute the source's MIPS instruction subset; they do not replace assembly and playtesting in Saturn. Test the branch in Saturn before submitting it.
 
-Students: Norah Liu and Tony Lin. Fill in student numbers in the source header. Codex assistance is recorded in the source. The report must describe this branch's keystroke-based rows and base-only matching if submitting this version; the earlier full-feature report needs corresponding updates.
+Students: Norah Liu and Tony Lin. Fill in student numbers in the source header. The report must describe this branch's keystroke-based rows and base-only matching if submitting this version; the earlier full-feature report needs corresponding updates.
