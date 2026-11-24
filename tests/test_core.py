@@ -60,6 +60,9 @@ class Machine:
             elif op == 'subu': self.put(a[0], v(a[1]) - v(a[2]))
             elif op == 'and': self.put(a[0], v(a[1]) & v(a[2]))
             elif op == 'srl': self.put(a[0], (v(a[1]) & 0xffffffff) >> v(a[2]))
+            elif op == 'multu':
+                product = (v(a[0]) & 0xffffffff) * (v(a[1]) & 0xffffffff)
+                self.lo, self.hi = product & 0xffffffff, product >> 32
             elif op == 'mul': self.put(a[0], v(a[1]) * v(a[2]))
             elif op == 'sll': self.put(a[0], v(a[1]) << v(a[2]))
             elif op == 'andi': self.put(a[0], v(a[1]) & v(a[2]))
@@ -95,21 +98,29 @@ class CoreTests(unittest.TestCase):
         for c in range(4): m.cell(0,c,1)
         before=m.cells(); m.run('resolve_matches'); self.assertEqual(m.cells(),before)
 
-    def test_only_vertical_matches_clear_without_gravity(self):
+    def test_vertical_clear_compacts_without_horizontal_flood_fill(self):
         m=Machine()
         for r in range(3): m.cell(r,6,1)
         m.cell(1,5,1); m.cell(2,4,1); m.cell(3,0,1)
         m.run('resolve_matches')
         self.assertEqual(sum(x != 0 for x in m.cells()),3)
-        self.assertEqual(m.cells()[12],1)
-        self.assertEqual(m.cells()[18],1)
-        self.assertEqual(m.cells()[21],1)
+        self.assertEqual(m.cells()[5],1)
+        self.assertEqual(m.cells()[4],1)
+        self.assertEqual(m.cells()[0],1)
 
-    def test_long_runs_clear_but_survivors_stay_in_place(self):
+    def test_gravity_creates_a_second_match(self):
         m=Machine()
         for r, colour in enumerate([2,1,1,1,1,2,2]): m.cell(r,0,colour)
         m.run('resolve_matches')
-        self.assertEqual([m.cells()[7*r] for r in range(7)],[2,0,0,0,0,2,2])
+        self.assertFalse(any(m.cells()))
+
+    def test_gravity_preserves_order_and_clears_tail(self):
+        m=Machine()
+        for r in range(3): m.cell(r,0,1)
+        for r, colour in [(2,2),(5,3),(9,4)]: m.cell(r,1,colour)
+        m.run('resolve_matches')
+        self.assertEqual([m.cells()[7*r+1] for r in range(14)], [2,3,4]+[0]*11)
+        self.assertEqual(m.reg['$sp'],0x7fffeffc)
 
     def test_throw_empty_and_no_hands(self):
         m=Machine(); m.set('player_column',3); m.set('held_bubble_colour',2); m.set('held_bubble_count',2)

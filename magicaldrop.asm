@@ -2,7 +2,7 @@
 # Students: Norah Liu and Tony Lin; student numbers: TODO
 # Controls: a/d move, s grabs, w throws, q quits. Lowercase keys.
 # Demo 1 base game: one new row per 10 a/d/s/w keypresses.
-# Vertical runs of 3+ clear; no flood fill, gravity, or chain reactions.
+# Vertical runs of 3+ clear; unsupported bubbles rise and new matches chain.
 # Reaching row 13 ends play. Stop/Play in Saturn starts a new game.
 # No timer, pause, retry screen, or optional features.
 # Held bubbles appear in the panel to the right, one square per bubble.
@@ -385,8 +385,10 @@ new_row:
     addiu $sp, $sp, 8
     jr $ra
 
-# Remove vertical runs of three or more in one simultaneous pass.
-# bubbles_to_clear is separate from board: discover the whole removal set before deleting.
+# Resolve vertical runs of three or more. Each pass marks and deletes all current
+# vertical matches simultaneously, compacts bubbles upward in every column, and
+# repeats if gravity created another vertical match. This implements chains.
+# bubbles_to_clear is separate from board so discovery finishes before deletion.
 # Preserves all saved registers used here and ra; clobbers temporary registers.
 resolve_matches:
     addiu $sp, $sp, -24
@@ -442,6 +444,58 @@ delete_marked:
 delete_next:
     addiu $t0, $t0, 4
     blt $t0, 392, delete_marked
+
+    # Gravity: compact each column toward row 0, preserving bubble order.
+    # s1 is the next free destination row; s2 scans source rows 0..13.
+    li $s0, 0
+gravity_column:
+    li $s1, 0
+    li $s2, 0
+gravity_scan:
+    # Source address = board + 4*(row*7 + column).
+    li $t0, 7
+    multu $s2, $t0
+    mflo $t0
+    addu $t0, $t0, $s0
+    sll $t0, $t0, 2
+    la $t1, board
+    addu $t1, $t1, $t0
+    lw $t2, 0($t1)
+    beqz $t2, gravity_scan_next
+
+    # Copy each bubble to the next occupied slot, if there is a gap above it.
+    li $t0, 7
+    multu $s1, $t0
+    mflo $t0
+    addu $t0, $t0, $s0
+    sll $t0, $t0, 2
+    la $t1, board
+    addu $t1, $t1, $t0
+    sw $t2, 0($t1)
+    addiu $s1, $s1, 1
+gravity_scan_next:
+    addiu $s2, $s2, 1
+    blt $s2, 14, gravity_scan
+
+    # Clear leftover cells below the compacted stack, if any.
+    bge $s1, 14, gravity_next_column
+gravity_clear_tail:
+    li $t0, 7
+    multu $s1, $t0
+    mflo $t0
+    addu $t0, $t0, $s0
+    sll $t0, $t0, 2
+    la $t1, board
+    addu $t1, $t1, $t0
+    sw $zero, 0($t1)
+    addiu $s1, $s1, 1
+    blt $s1, 14, gravity_clear_tail
+gravity_next_column:
+    addiu $s0, $s0, 1
+    blt $s0, 7, gravity_column
+
+    # Gravity may have made another vertical triple; resolve the next chain.
+    b resolve_round
 
 resolve_return:
     lw $ra, 0($sp)

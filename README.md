@@ -15,18 +15,18 @@ The board has 7 columns, 14 rows, and five random starting rows using four colou
 
 Every 10 a/d/s/w keypresses adds a random top row and pushes existing bubbles downward. Unsuccessful gameplay actions count; other keys do not. Waiting without input never advances rows.
 
-After a throw, vertical runs of three or more clear in one simultaneous pass. Horizontal neighbours do not clear unless part of their own vertical run. Remaining bubbles stay in place: no flood fill, gravity, or chains.
+After a throw, vertical runs of three or more clear simultaneously. Remaining bubbles compact upward within their columns while preserving order. The game repeats matching and gravity until no vertical match remains, producing chain reactions. Horizontal neighbours do not clear unless part of their own vertical run; there is no horizontal flood fill.
 
 Reaching the bottom row after an action resolves, or attempting an overflowing throw, ends execution after redrawing the board. Stop/Play starts another game. There is no timer, pause, retry screen, score, sound, or menu.
 
 ## Worksheet interpretation
 
-This branch follows the detailed Demo 1 checklist (Milestone 3 items a-c) and omits features listed under Easy/Hard Features. The worksheet also mentions chains in the Milestone 3 heading and preparation steps, although gravity and chains are separately listed as hard extras. Confirm that ambiguity with the TA; the full implementation remains on `master`.
+This branch implements vertical matching, gravity, and chain reactions for Milestone 3. It omits other features listed under Easy/Hard Features; the full implementation remains on `master`.
 
 ## Memory and validation
 
 `board` and `bubbles_to_clear` each contain 98 words (392 bytes). Board values are 0 for empty and 1-4 for colours. Cell address is `board + 4*(row*7 + column)`. Player column, held colour/count, keystroke count, and game-over state have separate words. Drawing uses a 32 x 32 logical display with 2 x 2 units per bubble.
 
-Run `python -m unittest discover -s tests -v`. These deterministic checks execute the source's MIPS instruction subset; they do not replace assembly and playtesting in Saturn. Test the branch in Saturn before submitting it.
+Run `python -m unittest discover -s tests -v` for the regression checks. The harness executes the MIPS instruction subset used here; assemble and play the branch in Saturn before submitting it.
 
-Students: Norah Liu and Tony Lin. Fill in student numbers in the source header. The report must describe this branch's keystroke-based rows and base-only matching if submitting this version; the earlier full-feature report needs corresponding updates.
+Students: Norah Liu and Tony Lin. Fill in student numbers in the source header. The report should describe this branch's keystroke-based rows and vertical matching with gravity and chain reactions.
